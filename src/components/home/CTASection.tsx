@@ -4,9 +4,9 @@ import { Link } from "react-router-dom";
 
 const benefits = [
   "Cadastro gratuito para empresas",
-  "Acesso a milhares de órgãos públicos",
+  "Acesso a órgãos públicos de todo o país",
   "Divulgação de suas Atas de Registro",
-  "Receba leads qualificados",
+  "Receba manifestações de interesse qualificadas",
 ];
 
 export function CTASection() {
@@ -41,7 +41,7 @@ export function CTASection() {
 
               <div className="flex flex-col sm:flex-row gap-4">
                 <Button size="lg" variant="secondary" className="font-semibold" asChild>
-                  <Link to="/anuncie" className="flex items-center gap-2">
+                  <Link to="/cadastro/empresa" className="flex items-center gap-2">
                     Quero Anunciar
                     <ArrowRight className="h-5 w-5" />
                   </Link>

@@ -2,14 +2,21 @@ import { useState } from "react";
 import { Search, Building2, FileCheck, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useEmpresasCadastradas } from "@/contexts/EmpresasCadastradasContext";
+import { useAtas } from "@/contexts/AtasContext";
+import { useDemandas } from "@/contexts/DemandasContext";
 
 export function HeroSection() {
   const [searchQuery, setSearchQuery] = useState("");
+  const { empresas } = useEmpresasCadastradas();
+  const { atas } = useAtas();
+  const { getAllDemandas } = useDemandas();
+  const totalDemandas = getAllDemandas().length;
 
   const stats = [
-    { icon: Building2, value: "2.500+", label: "Empresas Cadastradas" },
-    { icon: FileCheck, value: "850+", label: "Atas Disponíveis" },
-    { icon: TrendingUp, value: "R$ 2.1 Bi", label: "Em Negócios Gerados" },
+    { icon: Building2, value: empresas.length, label: "Empresas Cadastradas" },
+    { icon: FileCheck, value: atas.length, label: "Atas Disponíveis" },
+    { icon: TrendingUp, value: totalDemandas, label: "Negócios Conectados" },
   ];
 
   return (
@@ -67,13 +74,13 @@ export function HeroSection() {
             ))}
           </div>
 
-          {/* Stats */}
+          {/* Stats - quantidades reais dos contextos */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 animate-fade-up" style={{ animationDelay: "0.5s" }}>
             {stats.map((stat) => (
               <div key={stat.label} className="flex flex-col items-center p-4 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20">
                 <stat.icon className="h-6 w-6 text-white/80 mb-2" />
                 <span className="font-display text-2xl font-bold text-white">{stat.value}</span>
-                <span className="text-sm text-white/70">{stat.label}</span>
+                <span className="text-sm text-white/70 text-center">{stat.label}</span>
               </div>
             ))}
           </div>

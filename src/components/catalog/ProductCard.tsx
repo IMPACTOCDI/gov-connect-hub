@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { Building2, FileCheck, Gavel, MapPin, ArrowRight, MessageSquare } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
 import type { Product } from "@/pages/Catalogo";
 
 interface ProductCardProps {
@@ -36,6 +37,11 @@ const getPurchaseColor = (type: string) => {
 };
 
 export function ProductCard({ product, viewMode }: ProductCardProps) {
+  const { user } = useAuth();
+  const manifestarHref = user
+    ? `/manifestar-interesse?produtoId=${product.id}&tipo=Manifestação de interesse`
+    : `/login?redirect=${encodeURIComponent(`/manifestar-interesse?produtoId=${product.id}&tipo=Manifestação de interesse`)}`;
+
   if (viewMode === "list") {
     return (
       <div className="group bg-card rounded-xl border border-border overflow-hidden shadow-card hover:shadow-card-hover transition-all duration-300">
@@ -93,9 +99,15 @@ export function ProductCard({ product, viewMode }: ProductCardProps) {
                   <ArrowRight className="h-4 w-4 ml-1" />
                 </Link>
               </Button>
-              <Button size="sm" className="flex-1 sm:flex-none bg-secondary hover:bg-secondary/90">
-                <MessageSquare className="h-4 w-4 mr-1" />
-                Solicitar Contato
+              <Button
+                size="sm"
+                className="flex-1 sm:flex-none bg-secondary hover:bg-secondary/90"
+                asChild
+              >
+                <Link to={manifestarHref}>
+                  <MessageSquare className="h-4 w-4 mr-1" />
+                  Manifestar interesse
+                </Link>
               </Button>
             </div>
           </div>
@@ -149,9 +161,11 @@ export function ProductCard({ product, viewMode }: ProductCardProps) {
               <ArrowRight className="h-4 w-4 ml-1" />
             </Link>
           </Button>
-          <Button size="sm" className="w-full bg-secondary hover:bg-secondary/90">
-            <MessageSquare className="h-4 w-4 mr-1" />
-            Solicitar Contato
+          <Button size="sm" className="w-full bg-secondary hover:bg-secondary/90" asChild>
+            <Link to={manifestarHref}>
+              <MessageSquare className="h-4 w-4 mr-1" />
+              Manifestar interesse
+            </Link>
           </Button>
         </div>
       </div>

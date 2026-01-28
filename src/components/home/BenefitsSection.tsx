@@ -14,7 +14,7 @@ const benefitsEmpresas = [
   {
     icon: TrendingUp,
     title: "Aumente seu Faturamento",
-    description: "Alcance um mercado de mais de R$ 200 bilhões em compras governamentais anuais.",
+    description: "Alcance o mercado de compras governamentais e amplie suas oportunidades de venda.",
   },
 ];
 
@@ -32,7 +32,7 @@ const benefitsOrgaos = [
   {
     icon: Building,
     title: "Catálogo Completo",
-    description: "Acesse milhares de produtos e serviços categorizados por tipo e região.",
+    description: "Acesse produtos e serviços de empresas homologadas, categorizados por tipo e região.",
   },
 ];
 

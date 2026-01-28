@@ -7,10 +7,13 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 interface CatalogFiltersProps {
   categories: string[];
   states: string[];
+  companies: string[];
   selectedCategories: string[];
   setSelectedCategories: React.Dispatch<React.SetStateAction<string[]>>;
   selectedStates: string[];
   setSelectedStates: React.Dispatch<React.SetStateAction<string[]>>;
+  selectedCompanies: string[];
+  setSelectedCompanies: React.Dispatch<React.SetStateAction<string[]>>;
   selectedType: string;
   setSelectedType: React.Dispatch<React.SetStateAction<string>>;
   selectedPurchaseType: string;
@@ -20,10 +23,13 @@ interface CatalogFiltersProps {
 export function CatalogFilters({
   categories,
   states,
+  companies,
   selectedCategories,
   setSelectedCategories,
   selectedStates,
   setSelectedStates,
+  selectedCompanies,
+  setSelectedCompanies,
   selectedType,
   setSelectedType,
   selectedPurchaseType,
@@ -41,11 +47,17 @@ export function CatalogFilters({
     );
   };
 
+  const toggleCompany = (company: string) => {
+    setSelectedCompanies((prev) =>
+      prev.includes(company) ? prev.filter((c) => c !== company) : [...prev, company]
+    );
+  };
+
   return (
     <div className="bg-card rounded-xl border border-border p-5">
       <h2 className="font-display text-lg font-semibold text-foreground mb-4">Filtros</h2>
 
-      <Accordion type="multiple" defaultValue={["type", "category", "state", "purchase"]} className="space-y-2">
+      <Accordion type="multiple" defaultValue={["type", "category", "companies", "state", "purchase"]} className="space-y-2">
         {/* Tipo */}
         <AccordionItem value="type" className="border-b border-border">
           <AccordionTrigger className="text-sm font-medium hover:no-underline py-3">
@@ -107,6 +119,39 @@ export function CatalogFilters({
                 </Label>
               </div>
             </RadioGroup>
+          </AccordionContent>
+        </AccordionItem>
+
+        {/* Empresas */}
+        <AccordionItem value="companies" className="border-b border-border">
+          <AccordionTrigger className="text-sm font-medium hover:no-underline py-3">
+            Empresas
+            {selectedCompanies.length > 0 && (
+              <span className="ml-2 px-2 py-0.5 text-xs bg-primary/10 text-primary rounded-full">
+                {selectedCompanies.length}
+              </span>
+            )}
+          </AccordionTrigger>
+          <AccordionContent className="pb-4">
+            <ScrollArea className="h-40">
+              <div className="space-y-2 pr-4">
+                {companies.map((company) => (
+                  <div key={company} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`company-${company}`}
+                      checked={selectedCompanies.includes(company)}
+                      onCheckedChange={() => toggleCompany(company)}
+                    />
+                    <Label
+                      htmlFor={`company-${company}`}
+                      className="text-sm font-normal cursor-pointer leading-tight truncate"
+                    >
+                      {company}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
           </AccordionContent>
         </AccordionItem>
 

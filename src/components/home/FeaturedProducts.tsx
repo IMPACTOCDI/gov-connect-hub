@@ -1,50 +1,8 @@
-import { ArrowRight, Building2, FileCheck, Gavel } from "lucide-react";
+import { ArrowRight, Building2, FileCheck, Gavel, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
-
-const featuredProducts = [
-  {
-    id: "1",
-    title: "Computadores Desktop All-in-One",
-    company: "TechSolutions Brasil",
-    category: "Equipamentos de TI",
-    type: "product",
-    hasAta: true,
-    purchaseType: "Ata Disponível",
-    imageUrl: "https://images.unsplash.com/photo-1587831990711-23ca6441447b?w=400&h=300&fit=crop",
-  },
-  {
-    id: "2",
-    title: "Cadeiras Ergonômicas para Escritório",
-    company: "Móveis Corporativos LTDA",
-    category: "Mobiliário",
-    type: "product",
-    hasAta: true,
-    purchaseType: "Ata Disponível",
-    imageUrl: "https://images.unsplash.com/photo-1580480055273-228ff5388ef8?w=400&h=300&fit=crop",
-  },
-  {
-    id: "3",
-    title: "Serviço de Limpeza Predial",
-    company: "CleanMax Serviços",
-    category: "Serviços",
-    type: "service",
-    hasAta: false,
-    purchaseType: "Dispensa",
-    imageUrl: "https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=400&h=300&fit=crop",
-  },
-  {
-    id: "4",
-    title: "Papel A4 - Resma 500 folhas",
-    company: "Papelaria Nacional",
-    category: "Material de Escritório",
-    type: "product",
-    hasAta: false,
-    purchaseType: "Licitação",
-    imageUrl: "https://images.unsplash.com/photo-1568205631-15a5b4e06d00?w=400&h=300&fit=crop",
-  },
-];
+import { useEmpresaAnuncios } from "@/contexts/EmpresaAnunciosContext";
 
 const getPurchaseIcon = (type: string) => {
   switch (type) {
@@ -73,6 +31,9 @@ const getPurchaseColor = (type: string) => {
 };
 
 export function FeaturedProducts() {
+  const { anuncios } = useEmpresaAnuncios();
+  const featuredProducts = anuncios.slice(0, 4);
+
   return (
     <section className="py-20 bg-background">
       <div className="container">
@@ -96,7 +57,24 @@ export function FeaturedProducts() {
           </Button>
         </div>
 
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        {featuredProducts.length === 0 ? (
+          <div className="border border-dashed border-border rounded-xl p-12 text-center">
+            <Package className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+            <h3 className="font-display text-lg font-semibold text-foreground mb-2">
+              Nenhum produto em destaque
+            </h3>
+            <p className="text-muted-foreground text-sm max-w-md mx-auto mb-6">
+              Quando empresas cadastradas publicarem anúncios, eles aparecerão aqui. Acesse o catálogo para explorar.
+            </p>
+            <Button asChild>
+              <Link to="/catalogo" className="flex items-center gap-2">
+                Ir para o catálogo
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </Button>
+          </div>
+        ) : (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {featuredProducts.map((product) => (
             <div
               key={product.id}
@@ -141,6 +119,7 @@ export function FeaturedProducts() {
             </div>
           ))}
         </div>
+        )}
       </div>
     </section>
   );

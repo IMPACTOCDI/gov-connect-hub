@@ -54,31 +54,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error("E-mail ou senha inválidos. Crie uma conta de comprador se ainda não tiver.");
       }
 
-      // 3) Empresa: verificar cadastro aprovado
+      // 3) Empresa: verificar cadastro aprovado no Supabase
       if (role === "empresa") {
-        const emp = registro.empresas.find(
-          (e) => e.email.trim().toLowerCase() === email.trim().toLowerCase() && e.senha === senha
-        );
-        if (emp) {
-          if (emp.status === "pendente")
+        try {
+          // Buscar empresa no Supabase
+          const { data: empresa, error } = await supabase
+            .from('empresas_registro')
+            .select('*')
+            .eq('email', email.trim().toLowerCase())
+            .single();
+
+          if (error || !empresa) {
+            throw new Error("E-mail ou senha inválidos. Cadastre sua empresa e aguarde aprovação.");
+          }
+
+          // Verificar senha (assumindo que está em texto simples para teste)
+          if (empresa.senha !== senha) {
+            throw new Error("E-mail ou senha inválidos. Cadastre sua empresa e aguarde aprovação.");
+          }
+
+          // Verificar status
+          if (empresa.status === "pendente") {
             throw new Error("Seu cadastro está em análise. Aguarde a aprovação do administrador.");
-          if (emp.status === "rejeitado")
+          }
+          if (empresa.status === "rejeitado") {
             throw new Error("Seu cadastro não foi aprovado. Entre em contato com o suporte.");
-          if (emp.status === "aprovado") {
+          }
+          if (empresa.status === "aprovado") {
             const u: User = {
-              id: emp.id,
-              email: emp.email,
-              nome: emp.nomeFantasia || emp.razaoSocial,
+              id: empresa.id,
+              email: empresa.email,
+              nome: empresa.nome_fantasia || empresa.razao_social,
               role: "empresa",
-              empresaId: emp.id,
-              empresaNome: emp.nomeFantasia || emp.razaoSocial,
+              empresaId: empresa.id,
+              empresaNome: empresa.nome_fantasia || empresa.razao_social,
             };
             setUser(u);
             sessionStorage.setItem("govconnect_user", JSON.stringify(u));
             return;
           }
+        } catch (err: any) {
+          console.error('Erro ao buscar empresa no Supabase:', err);
+          throw new Error("E-mail ou senha inválidos. Cadastre sua empresa e aguarde aprovação.");
         }
-        throw new Error("E-mail ou senha inválidos. Cadastre sua empresa e aguarde aprovação.");
       }
 
       // Administrador: verificar cadastro no Supabase ou localStorage

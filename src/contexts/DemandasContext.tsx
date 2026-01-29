@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, useCallback, ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, ReactNode, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 export type TipoDemanda = "Manifestação de interesse" | "Manifestação de interesse (Ata)";
 
@@ -24,6 +25,8 @@ const STORAGE_KEY = "govconnect_demandas";
 export type DemandaEdicao = Pick<Demanda, "origem" | "mensagem" | "contatoNome" | "contatoTelefone" | "uf">;
 
 type DemandasContextType = {
+  demandas: Demanda[];
+  loading: boolean;
   addDemanda: (d: Omit<Demanda, "id" | "data" | "status">) => Demanda;
   getAllDemandas: () => Demanda[];
   getDemandasByCompany: (company: string) => Demanda[];
@@ -32,6 +35,7 @@ type DemandasContextType = {
   updateDemandaStatus: (id: string, status: string) => void;
   updateDemanda: (id: string, data: Partial<DemandaEdicao>) => void;
   removeDemanda: (id: string) => void;
+  refreshDemandas: () => Promise<void>;
 };
 
 const DemandasContext = createContext<DemandasContextType | undefined>(undefined);
@@ -42,17 +46,56 @@ function formatDate() {
 }
 
 export function DemandasProvider({ children }: { children: ReactNode }) {
-  const [demandas, setDemandas] = useState<Demanda[]>(() => {
-    const stored = sessionStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      try {
-        return JSON.parse(stored) as Demanda[];
-      } catch {
-        return [];
+  const [demandas, setDemandas] = useState<Demanda[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Função para buscar demandas do Supabase
+  const fetchDemandas = useCallback(async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('demandas')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Erro ao buscar demandas:', error);
+        return;
       }
+
+      // Converter dados do Supabase para o formato Demanda
+      const demandasFormatadas: Demanda[] = data.map(demanda => ({
+        id: demanda.id,
+        tipo: demanda.tipo as TipoDemanda,
+        origem: demanda.origem,
+        email: demanda.email,
+        produto: demanda.produto,
+        produtoId: demanda.produto_id,
+        company: demanda.company,
+        data: demanda.data,
+        status: demanda.status,
+        mensagem: demanda.mensagem || undefined,
+        contatoNome: demanda.contato_nome || undefined,
+        contatoTelefone: demanda.contato_telefone || undefined,
+        uf: demanda.uf || undefined
+      }));
+
+      setDemandas(demandasFormatadas);
+    } catch (err) {
+      console.error('Erro ao buscar demandas:', err);
+    } finally {
+      setLoading(false);
     }
-    return [];
-  });
+  }, []);
+
+  // Carregar dados na inicialização
+  useEffect(() => {
+    fetchDemandas();
+  }, [fetchDemandas]);
+
+  const refreshDemandas = useCallback(async () => {
+    await fetchDemandas();
+  }, [fetchDemandas]);
 
   const addDemanda = useCallback((d: Omit<Demanda, "id" | "data" | "status">): Demanda => {
     const id = "d" + Date.now();
@@ -120,7 +163,7 @@ export function DemandasProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <DemandasContext.Provider value={{ addDemanda, getAllDemandas, getDemandasByCompany, getDemandasByEmail, getDemanda, updateDemandaStatus, updateDemanda, removeDemanda }}>
+    <DemandasContext.Provider value={{ demandas, loading, addDemanda, getAllDemandas, getDemandasByCompany, getDemandasByEmail, getDemanda, updateDemandaStatus, updateDemanda, removeDemanda, refreshDemandas }}>
       {children}
     </DemandasContext.Provider>
   );

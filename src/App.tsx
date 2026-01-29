@@ -26,6 +26,7 @@ import CadastroAdmin from "./pages/CadastroAdmin";
 import EmpresaDashboard from "./pages/EmpresaDashboard";
 import CompradorDashboard from "./pages/CompradorDashboard";
 import GestaoDashboard from "./pages/GestaoDashboard";
+import GestaoAtas from "./pages/GestaoAtas";
 import GestaoDemandaDetalhe from "./pages/GestaoDemandaDetalhe";
 import GestaoEmpresaDetalhe from "./pages/GestaoEmpresaDetalhe";
 import DemandaDetalhe from "./pages/DemandaDetalhe";
@@ -80,6 +81,7 @@ const App = () => (
               </Route>
               <Route path="/gestao" element={<GestaoLayout />}>
                 <Route index element={<GestaoDashboard />} />
+                <Route path="atas" element={<GestaoAtas />} />
                 <Route path="demandas/:id" element={<GestaoDemandaDetalhe />} />
                 <Route path="empresas/:id" element={<GestaoEmpresaDetalhe />} />
               </Route>

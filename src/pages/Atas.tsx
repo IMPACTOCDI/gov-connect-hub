@@ -56,7 +56,7 @@ const categorias = [
 const modalidades = ["Pregão Eletrônico", "Pregão Presencial", "Concorrência", "Dispensa", "Inexigibilidade"];
 
 export default function Atas() {
-  const { atas } = useAtas();
+  const { atas, loading } = useAtas();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedEmpresa, setSelectedEmpresa] = useState<string>("todos");
   const [selectedEstado, setSelectedEstado] = useState<string>("todos");

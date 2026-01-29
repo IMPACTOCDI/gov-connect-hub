@@ -35,6 +35,7 @@ import {
   CheckCircle,
   XCircle,
   Plus,
+  FileText,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -134,10 +135,18 @@ export default function GestaoDashboard() {
                   {user.nome} • {user.email}
                 </p>
               </div>
-              <Button variant="ghost" size="sm" onClick={handleLogout} className="text-muted-foreground w-fit">
-                <LogOut className="h-4 w-4 mr-2" />
-                Sair
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" asChild>
+                  <Link to="/gestao/atas">
+                    <FileText className="h-4 w-4 mr-2" />
+                    Gerenciar Atas
+                  </Link>
+                </Button>
+                <Button variant="ghost" size="sm" onClick={handleLogout} className="text-muted-foreground">
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Sair
+                </Button>
+              </div>
             </div>
           </div>
         </section>

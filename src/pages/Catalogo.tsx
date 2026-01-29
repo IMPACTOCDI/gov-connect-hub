@@ -26,6 +26,8 @@ export interface Product {
 export const mockProducts: Product[] = [];
 
 const categories = [
+  "Software",
+  "Consultoria",
   "Equipamentos de TI",
   "Mobiliário",
   "Material de Escritório",
@@ -34,6 +36,7 @@ const categories = [
   "Serviços de Manutenção",
   "Serviços de Segurança",
   "Serviços de TI",
+  "Tecnologia da Informação",
 ];
 
 const states = [
@@ -45,7 +48,7 @@ const states = [
 ];
 
 export default function Catalogo() {
-  const { anuncios } = useEmpresaAnuncios();
+  const { anuncios, loading } = useEmpresaAnuncios();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedStates, setSelectedStates] = useState<string[]>([]);
@@ -305,7 +308,19 @@ export default function Catalogo() {
                 )}
 
                 {/* Products */}
-                {filteredProducts.length > 0 ? (
+                {loading ? (
+                  <div className="text-center py-16">
+                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-muted mb-4">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                    </div>
+                    <h3 className="font-display text-lg font-semibold text-foreground mb-2">
+                      Carregando produtos...
+                    </h3>
+                    <p className="text-muted-foreground">
+                      Buscando produtos e serviços disponíveis
+                    </p>
+                  </div>
+                ) : filteredProducts.length > 0 ? (
                   <div
                     className={
                       viewMode === "grid"

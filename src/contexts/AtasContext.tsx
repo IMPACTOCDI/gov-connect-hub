@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, useCallback, ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, ReactNode, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 export interface Ata {
   id: string;
@@ -20,23 +21,64 @@ const STORAGE_KEY = "govconnect_atas";
 
 type AtasContextType = {
   atas: Ata[];
+  loading: boolean;
   getAta: (id: string) => Ata | undefined;
+  refreshAtas: () => Promise<void>;
 };
 
 const AtasContext = createContext<AtasContextType | undefined>(undefined);
 
 export function AtasProvider({ children }: { children: ReactNode }) {
-  const [atas, setAtas] = useState<Ata[]>(() => {
-    const stored = sessionStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      try {
-        return JSON.parse(stored) as Ata[];
-      } catch {
-        return [];
+  const [atas, setAtas] = useState<Ata[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Função para buscar atas do Supabase
+  const fetchAtas = useCallback(async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('atas')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Erro ao buscar atas:', error);
+        return;
       }
+
+      // Converter dados do Supabase para o formato Ata
+      const atasFormatadas: Ata[] = data.map(ata => ({
+        id: ata.id,
+        titulo: ata.titulo,
+        orgao: ata.orgao,
+        estado: ata.estado,
+        categoria: ata.categoria,
+        modalidade: ata.modalidade,
+        numero: ata.numero,
+        vigenciaInicio: ata.vigencia_inicio,
+        vigenciaFim: ata.vigencia_fim,
+        situacao: ata.situacao as "Vigente" | "Encerrada",
+        valorEstimado: ata.valor_estimado || '',
+        linkEdital: ata.link_edital || undefined,
+        descricao: ata.descricao || ''
+      }));
+
+      setAtas(atasFormatadas);
+    } catch (err) {
+      console.error('Erro ao buscar atas:', err);
+    } finally {
+      setLoading(false);
     }
-    return [];
-  });
+  }, []);
+
+  // Carregar dados na inicialização
+  useEffect(() => {
+    fetchAtas();
+  }, [fetchAtas]);
+
+  const refreshAtas = useCallback(async () => {
+    await fetchAtas();
+  }, [fetchAtas]);
 
   const getAta = useCallback(
     (id: string) => atas.find((a) => a.id === id),
@@ -44,7 +86,7 @@ export function AtasProvider({ children }: { children: ReactNode }) {
   );
 
   return (
-    <AtasContext.Provider value={{ atas, getAta }}>
+    <AtasContext.Provider value={{ atas, loading, getAta, refreshAtas }}>
       {children}
     </AtasContext.Provider>
   );

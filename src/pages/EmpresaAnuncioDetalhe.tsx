@@ -70,7 +70,7 @@ export default function EmpresaAnuncioDetalhe() {
     );
   }
 
-  const purchaseIcon =
+  const PurchaseIcon =
     product.purchaseType === "Ata Disponível"
       ? FileCheck
       : product.purchaseType === "Licitação"
@@ -173,7 +173,7 @@ export default function EmpresaAnuncioDetalhe() {
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <Badge className="inline-flex items-center gap-1">
-                    <purchaseIcon className="h-3 w-3" />
+                    <PurchaseIcon className="h-3 w-3" />
                     {product.purchaseType}
                   </Badge>
                   {product.hasAta ? (

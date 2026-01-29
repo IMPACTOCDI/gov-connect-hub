@@ -1,22 +1,50 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Search, Building2, FileCheck, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useEmpresasCadastradas } from "@/contexts/EmpresasCadastradasContext";
 import { useAtas } from "@/contexts/AtasContext";
 import { useDemandas } from "@/contexts/DemandasContext";
+import { useEmpresaAnuncios } from "@/contexts/EmpresaAnunciosContext";
+import { supabase } from "@/integrations/supabase/client";
 
 export function HeroSection() {
   const [searchQuery, setSearchQuery] = useState("");
-  const { empresas } = useEmpresasCadastradas();
   const { atas } = useAtas();
-  const { getAllDemandas } = useDemandas();
-  const totalDemandas = getAllDemandas().length;
+  const { demandas } = useDemandas();
+  const { anuncios } = useEmpresaAnuncios();
+  
+  // Estados para estatísticas reais do Supabase
+  const [totalEmpresas, setTotalEmpresas] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  // Buscar total de empresas aprovadas do Supabase
+  useEffect(() => {
+    const fetchEmpresasCount = async () => {
+      try {
+        const { count, error } = await supabase
+          .from('empresas_registro')
+          .select('*', { count: 'exact', head: true })
+          .eq('status', 'aprovado');
+
+        if (error) {
+          console.error('Erro ao buscar empresas:', error);
+        } else {
+          setTotalEmpresas(count || 0);
+        }
+      } catch (err) {
+        console.error('Erro ao buscar empresas:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchEmpresasCount();
+  }, []);
 
   const stats = [
-    { icon: Building2, value: empresas.length, label: "Empresas Cadastradas" },
+    { icon: Building2, value: loading ? "..." : totalEmpresas, label: "Empresas Cadastradas" },
     { icon: FileCheck, value: atas.length, label: "Atas Disponíveis" },
-    { icon: TrendingUp, value: totalDemandas, label: "Negócios Conectados" },
+    { icon: TrendingUp, value: demandas.length, label: "Negócios Conectados" },
   ];
 
   return (
@@ -79,7 +107,13 @@ export function HeroSection() {
             {stats.map((stat) => (
               <div key={stat.label} className="flex flex-col items-center p-4 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20">
                 <stat.icon className="h-6 w-6 text-white/80 mb-2" />
-                <span className="font-display text-2xl font-bold text-white">{stat.value}</span>
+                <span className="font-display text-2xl font-bold text-white">
+                  {loading && stat.label === "Empresas Cadastradas" ? (
+                    <div className="animate-pulse">...</div>
+                  ) : (
+                    stat.value
+                  )}
+                </span>
                 <span className="text-sm text-white/70 text-center">{stat.label}</span>
               </div>
             ))}

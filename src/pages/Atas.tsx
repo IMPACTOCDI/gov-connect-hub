@@ -11,6 +11,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { CalendarDays, FileText, Filter, Search } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAtas } from "@/contexts/AtasContext";
+import { useAuth } from "@/contexts/AuthContext";
 
 const estados = [
   "Acre",
@@ -57,6 +58,7 @@ const modalidades = ["Pregão Eletrônico", "Pregão Presencial", "Concorrência
 
 export default function Atas() {
   const { atas, loading } = useAtas();
+  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedEmpresa, setSelectedEmpresa] = useState<string>("todos");
   const [selectedEstado, setSelectedEstado] = useState<string>("todos");
@@ -93,6 +95,31 @@ export default function Atas() {
     setSelectedModalidade("todas");
     setSelectedSituacao("todas");
   };
+
+  // Função para gerar o link correto de manifestar interesse
+  const getManifestInterestLink = (ataId: string) => {
+    if (!user) {
+      // Não logado - vai para login com redirect
+      return `/login?redirect=${encodeURIComponent(`/manifestar-interesse?ataId=${ataId}&tipo=Manifestação de interesse (Ata)`)}`;
+    }
+    
+    if (user.role === "comprador") {
+      // Comprador logado - vai direto para manifestar interesse
+      return `/manifestar-interesse?ataId=${ataId}&tipo=Manifestação de interesse (Ata)`;
+    }
+    
+    // Outros casos - vai para login
+    return `/login?redirect=${encodeURIComponent(`/manifestar-interesse?ataId=${ataId}&tipo=Manifestação de interesse (Ata)`)}`;
+  };
+
+  const getButtonText = () => {
+    if (!user) return "Manifestar interesse";
+    if (user.role === "comprador") return "Manifestar interesse";
+    if (user.role === "empresa") return "Empresas não podem aderir";
+    return "Manifestar interesse";
+  };
+
+  const isButtonDisabled = user?.role === "empresa";
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -443,10 +470,19 @@ export default function Atas() {
                                   </a>
                                 </Button>
                               )}
-                              <Button asChild size="sm" className="bg-secondary hover:bg-secondary/90">
-                                <Link to={`/cadastro/empresa?ata=${encodeURIComponent(ata.numero)}`}>
-                                  Manifestar interesse
-                                </Link>
+                              <Button 
+                                asChild={!isButtonDisabled}
+                                disabled={isButtonDisabled}
+                                size="sm" 
+                                className="bg-secondary hover:bg-secondary/90"
+                              >
+                                {isButtonDisabled ? (
+                                  <span>{getButtonText()}</span>
+                                ) : (
+                                  <Link to={getManifestInterestLink(ata.id)}>
+                                    {getButtonText()}
+                                  </Link>
+                                )}
                               </Button>
                             </div>
                           </div>

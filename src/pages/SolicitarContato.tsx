@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEmpresaAnuncios } from "@/contexts/EmpresaAnunciosContext";
+import { useAtas } from "@/contexts/AtasContext";
 import { useDemandas } from "@/contexts/DemandasContext";
 import { mockProducts } from "@/pages/Catalogo";
 import { ArrowLeft, MessageSquare, Send } from "lucide-react";
@@ -16,40 +17,58 @@ import { useToast } from "@/hooks/use-toast";
 export default function SolicitarContato() {
   const [searchParams] = useSearchParams();
   const produtoId = searchParams.get("produtoId");
+  const ataId = searchParams.get("ataId");
   const tipo = searchParams.get("tipo") || "Manifestação de interesse";
   const navigate = useNavigate();
   const { user } = useAuth();
   const { getAnuncio, anuncios } = useEmpresaAnuncios();
+  const { getAta } = useAtas();
   const { addDemanda } = useDemandas();
   const { toast } = useToast();
   const [mensagem, setMensagem] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const product = useMemo(() => {
-    if (!produtoId) return undefined;
-    const fromAnuncios = getAnuncio(produtoId);
-    if (fromAnuncios) return fromAnuncios;
-    return mockProducts.find((p) => p.id === produtoId);
+    if (produtoId) {
+      const fromAnuncios = getAnuncio(produtoId);
+      if (fromAnuncios) return fromAnuncios;
+      return mockProducts.find((p) => p.id === produtoId);
+    }
+    return undefined;
   }, [produtoId, getAnuncio, anuncios]);
+
+  const ata = useMemo(() => {
+    if (ataId) {
+      return getAta(ataId);
+    }
+    return undefined;
+  }, [ataId, getAta]);
+
+  const item = product || ata;
+  const itemId = produtoId || ataId;
 
   useEffect(() => {
     if (!user) {
-      const redirect = `/manifestar-interesse?produtoId=${produtoId || ""}&tipo=${encodeURIComponent(tipo)}`;
+      const redirect = `/manifestar-interesse?${produtoId ? `produtoId=${produtoId}` : `ataId=${ataId}`}&tipo=${encodeURIComponent(tipo)}`;
       navigate(`/login?redirect=${encodeURIComponent(redirect)}`, { replace: true });
     }
-  }, [user, navigate, produtoId, tipo]);
+  }, [user, navigate, produtoId, ataId, tipo]);
 
   if (!user) return null;
 
-  if (!produtoId || !product) {
+  if (!itemId || !item) {
     return (
       <div className="min-h-screen flex flex-col">
         <Header />
         <main className="flex-1 flex items-center justify-center bg-muted/40">
           <div className="text-center space-y-3">
-            <p className="text-lg font-semibold text-foreground">Produto não encontrado</p>
+            <p className="text-lg font-semibold text-foreground">
+              {ataId ? "Ata não encontrada" : "Produto não encontrado"}
+            </p>
             <Button asChild variant="outline">
-              <Link to="/catalogo">Voltar ao catálogo</Link>
+              <Link to={ataId ? "/atas" : "/catalogo"}>
+                Voltar {ataId ? "às atas" : "ao catálogo"}
+              </Link>
             </Button>
           </div>
         </main>
@@ -64,21 +83,28 @@ export default function SolicitarContato() {
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      addDemanda({
+      const demandaData = {
         tipo: tipoDemanda,
         origem: user.nome,
         email: user.email,
-        produto: product.title,
-        produtoId: product.id,
-        company: product.company,
+        produto: ata ? ata.titulo : (product?.title || ""),
+        produtoId: itemId || "",
+        company: ata ? ata.orgao : (product?.company || ""),
         mensagem: mensagem.trim() || undefined,
         contatoNome: user.nome,
-      });
+      };
+
+      addDemanda(demandaData);
+      
       toast({
         title: "Manifestação enviada",
-        description: "Sua manifestação de interesse foi encaminhada para a empresa. Ela entrará em contato em breve.",
+        description: ata 
+          ? "Sua manifestação de interesse foi registrada. O órgão gerenciador entrará em contato em breve."
+          : "Sua manifestação de interesse foi encaminhada para a empresa. Ela entrará em contato em breve.",
       });
-      navigate(`/catalogo/${product.id}`, { replace: true });
+      
+      const redirectPath = ata ? `/atas/${ata.id}` : `/catalogo/${product?.id}`;
+      navigate(redirectPath, { replace: true });
     } catch {
       toast({
         title: "Erro",
@@ -103,11 +129,13 @@ export default function SolicitarContato() {
                 {tipoDemanda}
               </h1>
               <p className="text-sm text-muted-foreground mt-1">
-                Sua manifestação de interesse será encaminhada para <strong>{product.company}</strong>.
+                Sua manifestação de interesse será encaminhada para <strong>
+                  {ata ? ata.orgao : product?.company}
+                </strong>.
               </p>
             </div>
             <Button variant="outline" size="sm" asChild>
-              <Link to={`/catalogo/${product.id}`}>
+              <Link to={ata ? `/atas/${ata.id}` : `/catalogo/${product?.id}`}>
                 <ArrowLeft className="h-4 w-4 mr-1" />
                 Voltar
               </Link>
@@ -119,9 +147,14 @@ export default function SolicitarContato() {
           <div className="container max-w-2xl">
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">{product.title}</CardTitle>
+                <CardTitle className="text-lg">
+                  {ata ? ata.titulo : product?.title}
+                </CardTitle>
                 <p className="text-sm text-muted-foreground">
-                  Empresa: {product.company} • {product.category}
+                  {ata 
+                    ? `Órgão: ${ata.orgao} • ${ata.categoria}` 
+                    : `Empresa: ${product?.company} • ${product?.category}`
+                  }
                 </p>
               </CardHeader>
               <CardContent>
@@ -137,14 +170,14 @@ export default function SolicitarContato() {
                     />
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    Seus dados de contato ({user.email}) serão enviados à empresa para que ela possa retornar.
+                    Seus dados de contato ({user.email}) serão enviados {ata ? "ao órgão" : "à empresa"} para que {ata ? "ele" : "ela"} possa retornar.
                   </p>
                   <div className="flex gap-3">
                     <Button type="submit" disabled={isSubmitting} className="bg-secondary hover:bg-secondary/90">
                       {isSubmitting ? "Enviando..." : (<><Send className="h-4 w-4 mr-2" />Enviar manifestação</>)}
                     </Button>
                     <Button type="button" variant="outline" asChild>
-                      <Link to={`/catalogo/${product.id}`}>Cancelar</Link>
+                      <Link to={ata ? `/atas/${ata.id}` : `/catalogo/${product?.id}`}>Cancelar</Link>
                     </Button>
                   </div>
                 </form>

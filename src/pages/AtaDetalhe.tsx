@@ -6,11 +6,43 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CalendarDays, FileText, ArrowLeft, MapPin, Building2 } from "lucide-react";
 import { useAtas } from "@/contexts/AtasContext";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function AtaDetalhe() {
   const { id } = useParams<{ id: string }>();
   const { getAta } = useAtas();
+  const { user } = useAuth();
   const ata = id ? getAta(id) : undefined;
+
+  // Determinar o link para manifestar interesse
+  const getManifestInterestLink = () => {
+    if (!user) {
+      // Não logado - vai para login com redirect
+      return `/login?redirect=${encodeURIComponent(`/manifestar-interesse?ataId=${id}&tipo=Manifestação de interesse (Ata)`)}`;
+    }
+    
+    if (user.role === "comprador") {
+      // Comprador logado - vai direto para manifestar interesse
+      return `/manifestar-interesse?ataId=${id}&tipo=Manifestação de interesse (Ata)`;
+    }
+    
+    if (user.role === "empresa") {
+      // Empresa logada - não pode manifestar interesse em atas
+      return "#";
+    }
+    
+    // Admin - vai para login
+    return `/login?redirect=${encodeURIComponent(`/manifestar-interesse?ataId=${id}&tipo=Manifestação de interesse (Ata)`)}`;
+  };
+
+  const getButtonText = () => {
+    if (!user) return "Manifestar interesse em aderir";
+    if (user.role === "comprador") return "Manifestar interesse em aderir";
+    if (user.role === "empresa") return "Empresas não podem aderir a atas";
+    return "Manifestar interesse em aderir";
+  };
+
+  const isButtonDisabled = user?.role === "empresa";
 
   if (!ata) {
     return (
@@ -131,12 +163,17 @@ export default function AtaDetalhe() {
                     <span>{ata.estado}</span>
                   </div>
                   <Button
-                    asChild
+                    asChild={!isButtonDisabled}
+                    disabled={isButtonDisabled}
                     className="w-full bg-secondary hover:bg-secondary/90 mt-2"
                   >
-                    <Link to={`/cadastro/empresa?ata=${encodeURIComponent(ata.numero)}`}>
-                      Manifestar interesse em aderir
-                    </Link>
+                    {isButtonDisabled ? (
+                      <span>{getButtonText()}</span>
+                    ) : (
+                      <Link to={getManifestInterestLink()}>
+                        {getButtonText()}
+                      </Link>
+                    )}
                   </Button>
                   <Button asChild variant="outline" className="w-full">
                     <a href="#" onClick={(e) => e.preventDefault()}>

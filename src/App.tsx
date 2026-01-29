@@ -22,6 +22,7 @@ import EmpresasParceiras from "./pages/EmpresasParceiras";
 import Login from "./pages/Login";
 import CadastroComprador from "./pages/CadastroComprador";
 import CadastroEmpresa from "./pages/CadastroEmpresa";
+import CadastroAdmin from "./pages/CadastroAdmin";
 import EmpresaDashboard from "./pages/EmpresaDashboard";
 import CompradorDashboard from "./pages/CompradorDashboard";
 import GestaoDashboard from "./pages/GestaoDashboard";
@@ -67,6 +68,7 @@ const App = () => (
             <Route path="/login" element={<Login />} />
             <Route path="/cadastro/comprador" element={<CadastroComprador />} />
             <Route path="/cadastro/empresa" element={<CadastroEmpresa />} />
+            <Route path="/cadastro/admin" element={<CadastroAdmin />} />
             <Route element={<ProtectedRoute />}>
               <Route path="/comprador" element={<CompradorDashboard />} />
               <Route path="/empresa" element={<EmpresaLayout />}>

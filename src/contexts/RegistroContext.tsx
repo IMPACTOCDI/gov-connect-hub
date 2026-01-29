@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, useCallback, ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, ReactNode, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 /** Comprador: qualquer um pode se cadastrar. */
 export interface CompradorRegistrado {
@@ -39,6 +40,7 @@ const STORAGE_EMPRESAS = "govconnect_empresas_registradas";
 const STORAGE_ADMIN_EMAILS = "govconnect_admin_emails";
 
 const ADMIN_SENHA_PADRAO = "admin123"; // senha única para todos os admins (mock)
+const ADMIN_EMAIL_INICIAL = "admin@impactocdi.com.br"; // email admin padrão
 
 type RegistroContextType = {
   compradores: CompradorRegistrado[];
@@ -80,9 +82,113 @@ export function RegistroProvider({ children }: { children: ReactNode }) {
   const [empresas, setEmpresas] = useState<EmpresaRegistrada[]>(() =>
     loadJson<EmpresaRegistrada[]>(STORAGE_EMPRESAS, [])
   );
-  const [adminEmails, setAdminEmails] = useState<string[]>(() =>
-    loadJson<string[]>(STORAGE_ADMIN_EMAILS, [])
-  );
+  const [adminEmails, setAdminEmails] = useState<string[]>(() => {
+    const stored = loadJson<string[]>(STORAGE_ADMIN_EMAILS, []);
+    // Garantir que o admin inicial sempre esteja presente
+    const adminInicialLower = ADMIN_EMAIL_INICIAL.toLowerCase();
+    const hasAdminInicial = stored.some(email => email.toLowerCase() === adminInicialLower);
+    
+    if (!hasAdminInicial) {
+      const withAdminInicial = [ADMIN_EMAIL_INICIAL, ...stored];
+      saveJson(STORAGE_ADMIN_EMAILS, withAdminInicial);
+      console.log('✅ Email admin inicial adicionado:', ADMIN_EMAIL_INICIAL);
+      return withAdminInicial;
+    }
+    
+    console.log('✅ Emails admin carregados do localStorage:', stored);
+    return stored;
+  });
+
+  // Carregar e sincronizar emails do Supabase ao inicializar
+  useEffect(() => {
+    const carregarEmailsSupabase = async () => {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      if (!supabaseUrl || supabaseUrl === "undefined" || supabaseUrl === "") {
+        console.info("ℹ️ Supabase não configurado. Usando apenas localStorage para emails admin.");
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from("admin_emails_autorizados")
+          .select("email")
+          .eq("ativo", true);
+
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+          const emailsSupabase = data.map((item) => item.email);
+          
+          // Mesclar com emails do localStorage (sem duplicar)
+          const emailsUnicos = Array.from(
+            new Set([...adminEmails, ...emailsSupabase])
+          );
+          
+          // Garantir que o email inicial está presente
+          if (!emailsUnicos.some(e => e.toLowerCase() === ADMIN_EMAIL_INICIAL.toLowerCase())) {
+            emailsUnicos.unshift(ADMIN_EMAIL_INICIAL);
+          }
+          
+          setAdminEmails(emailsUnicos);
+          saveJson(STORAGE_ADMIN_EMAILS, emailsUnicos);
+          console.log("✅ Emails admin carregados do Supabase:", emailsUnicos);
+          
+          // Sincronizar: adicionar no Supabase os que estão no localStorage mas não no Supabase
+          const emailsParaSincronizar = adminEmails.filter(
+            e => !emailsSupabase.some(es => es.toLowerCase() === e.toLowerCase())
+          );
+          
+          if (emailsParaSincronizar.length > 0) {
+            console.log("🔄 Sincronizando emails do localStorage para Supabase:", emailsParaSincronizar);
+            await Promise.all(
+              emailsParaSincronizar.map(email =>
+                supabase.from("admin_emails_autorizados").insert({
+                  email,
+                  adicionado_por: "sistema_sync",
+                })
+              )
+            );
+          }
+        } else {
+          console.info("ℹ️ Nenhum email no Supabase. Sincronizando emails do localStorage...");
+          
+          // Se Supabase está vazio, adicionar os emails do localStorage
+          if (adminEmails.length > 0) {
+            const resultados = await Promise.allSettled(
+              adminEmails.map(async email => {
+                try {
+                  const { error } = await supabase.from("admin_emails_autorizados").insert({
+                    email,
+                    adicionado_por: "sistema_inicial",
+                  });
+                  
+                  if (error) {
+                    // Ignorar erro de duplicata (código 23505)
+                    if (error.code !== "23505") {
+                      throw error;
+                    }
+                  }
+                  return { email, sucesso: true };
+                } catch (err) {
+                  console.warn("⚠️ Erro ao sincronizar email:", email, err);
+                  return { email, sucesso: false, erro: err };
+                }
+              })
+            );
+            
+            const sucessos = resultados.filter(r => r.status === "fulfilled" && r.value.sucesso).length;
+            if (sucessos > 0) {
+              console.log(`✅ ${sucessos} email(s) sincronizado(s) para Supabase!`);
+            }
+          }
+        }
+      } catch (error) {
+        console.warn("⚠️ Erro ao carregar emails do Supabase. Usando localStorage:", error);
+      }
+    };
+
+    carregarEmailsSupabase();
+  }, []); // Executar apenas uma vez ao montar
 
   const persistCompradores = useCallback((next: CompradorRegistrado[]) => {
     saveJson(STORAGE_COMPRADORES, next);
@@ -200,19 +306,56 @@ export function RegistroProvider({ children }: { children: ReactNode }) {
   const getAdminEmails = useCallback(() => [...adminEmails], [adminEmails]);
 
   const addAdminEmail = useCallback(
-    (email: string) => {
+    async (email: string) => {
       const e = email.trim().toLowerCase();
       if (!e) return;
       if (adminEmails.some((a) => a.toLowerCase() === e)) return;
-      persistAdminEmails([...adminEmails, e]);
+      
+      // Adicionar no localStorage
+      const novosEmails = [...adminEmails, e];
+      persistAdminEmails(novosEmails);
+      
+      // Tentar adicionar no Supabase também
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      if (supabaseUrl && supabaseUrl !== "undefined" && supabaseUrl !== "") {
+        try {
+          await supabase.from("admin_emails_autorizados").insert({
+            email: e,
+            adicionado_por: "sistema", // Poderia ser o email do admin logado
+          });
+          console.log("✅ Email adicionado no Supabase:", e);
+        } catch (error) {
+          console.warn("⚠️ Erro ao adicionar email no Supabase, mas foi salvo no localStorage:", error);
+        }
+      } else {
+        console.info("ℹ️ Email adicionado apenas no localStorage (Supabase não configurado)");
+      }
     },
     [adminEmails, persistAdminEmails]
   );
 
   const removeAdminEmail = useCallback(
-    (email: string) => {
+    async (email: string) => {
       const e = email.trim().toLowerCase();
+      
+      // Remover do localStorage
       persistAdminEmails(adminEmails.filter((a) => a.toLowerCase() !== e));
+      
+      // Tentar remover do Supabase também
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      if (supabaseUrl && supabaseUrl !== "undefined" && supabaseUrl !== "") {
+        try {
+          await supabase
+            .from("admin_emails_autorizados")
+            .delete()
+            .eq("email", e);
+          console.log("✅ Email removido do Supabase:", e);
+        } catch (error) {
+          console.warn("⚠️ Erro ao remover email do Supabase, mas foi removido do localStorage:", error);
+        }
+      } else {
+        console.info("ℹ️ Email removido apenas do localStorage (Supabase não configurado)");
+      }
     },
     [adminEmails, persistAdminEmails]
   );

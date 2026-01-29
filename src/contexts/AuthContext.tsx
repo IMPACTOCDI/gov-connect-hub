@@ -1,5 +1,7 @@
 import { createContext, useContext, useState, useCallback, ReactNode } from "react";
 import { useRegistro } from "@/contexts/RegistroContext";
+import { supabase } from "@/integrations/supabase/client";
+import * as bcrypt from "bcryptjs";
 
 /** 1 = Empresa parceira | 2 = Comprador (ente federativo) | 3 = Administrador */
 export type Role = "empresa" | "comprador" | "gestao";
@@ -79,20 +81,114 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error("E-mail ou senha inválidos. Cadastre sua empresa e aguarde aprovação.");
       }
 
-      // Administrador: apenas e-mails autorizados + senha padrão
+      // Administrador: verificar cadastro no Supabase ou localStorage
       if (role === "gestao") {
-        if (registro.isAdminEmail(email) && registro.checkAdminSenha(senha)) {
+        let adminCadastro: any = null;
+        let usouSupabase = false;
+
+        try {
+          // Verificar se Supabase está configurado
+          const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+          const supabaseConfigurado = supabaseUrl && supabaseUrl !== "undefined" && supabaseUrl !== "";
+
+          // Tentar buscar no Supabase primeiro
+          if (supabaseConfigurado) {
+            try {
+              // Usar maybeSingle() para evitar erro 406
+              const { data, error: errorBusca } = await supabase
+                .from("admin_cadastros")
+                .select("*")
+                .eq("email", email.trim().toLowerCase())
+                .eq("ativo", true)
+                .maybeSingle();
+
+              if (data && !errorBusca) {
+                adminCadastro = data;
+                usouSupabase = true;
+                console.log("✅ Admin encontrado no Supabase");
+              } else if (errorBusca) {
+                console.warn("⚠️ Erro no Supabase, tentando localStorage:", errorBusca);
+              }
+            } catch (supabaseError) {
+              console.warn("⚠️ Supabase inacessível, usando localStorage:", supabaseError);
+            }
+          }
+
+          // Se não encontrou no Supabase, buscar no localStorage
+          if (!adminCadastro) {
+            const cadastrosLocal = localStorage.getItem("govconnect_admin_cadastros");
+            if (cadastrosLocal) {
+              const cadastros = JSON.parse(cadastrosLocal);
+              adminCadastro = cadastros.find(
+                (c: any) => c.email.toLowerCase() === email.trim().toLowerCase() && c.ativo !== false
+              );
+              if (adminCadastro) {
+                console.log("✅ Admin encontrado no localStorage");
+              }
+            }
+          }
+
+          // Se não encontrou cadastro, tentar senha padrão
+          if (!adminCadastro) {
+            if (registro.isAdminEmail(email) && registro.checkAdminSenha(senha)) {
+              const u: User = {
+                id: "gestao-" + Date.now(),
+                email: email.trim(),
+                nome: "Administrador",
+                role: "gestao",
+              };
+              setUser(u);
+              sessionStorage.setItem("govconnect_user", JSON.stringify(u));
+              console.log("✅ Login com senha padrão");
+              return;
+            }
+            throw new Error("E-mail ou senha inválidos. Cadastre-se em /cadastro/admin");
+          }
+
+          // Verificar senha com bcrypt
+          const senhaValida = await bcrypt.compare(senha, adminCadastro.senha_hash);
+          
+          if (!senhaValida) {
+            throw new Error("E-mail ou senha inválidos.");
+          }
+
+          // Login bem-sucedido
           const u: User = {
-            id: "gestao-" + Date.now(),
-            email: email.trim(),
-            nome: "Administrador",
+            id: adminCadastro.id,
+            email: adminCadastro.email,
+            nome: adminCadastro.nome,
             role: "gestao",
           };
           setUser(u);
           sessionStorage.setItem("govconnect_user", JSON.stringify(u));
+
+          // Atualizar último acesso se foi do Supabase
+          if (usouSupabase) {
+            try {
+              await Promise.all([
+                supabase
+                  .from("admin_cadastros")
+                  .update({ ultimo_acesso: new Date().toISOString() })
+                  .eq("id", adminCadastro.id),
+                supabase.from("admin_logs").insert({
+                  admin_id: adminCadastro.id,
+                  email: adminCadastro.email,
+                  acao: "login",
+                  sucesso: true,
+                  mensagem: "Login realizado com sucesso",
+                }),
+              ]);
+            } catch (logError) {
+              console.warn("⚠️ Erro ao registrar log, mas login foi bem-sucedido:", logError);
+            }
+          }
+
+          console.log("✅ Login realizado com sucesso!");
           return;
+        } catch (err: any) {
+          console.error("❌ Erro ao fazer login como admin:", err);
+          throw new Error(err.message || "Erro ao fazer login. Tente novamente.");
         }
-        throw new Error("Acesso restrito. Use um e-mail autorizado e a senha de administrador.");
       }
 
       throw new Error("E-mail ou senha inválidos.");

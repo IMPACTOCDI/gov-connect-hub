@@ -177,6 +177,11 @@ export default function Login() {
                   <Button type="button" variant="link" className="text-sm shrink-0 h-auto py-1" asChild>
                     <Link to="/cadastro/empresa" className="break-words text-center">Cadastrar empresa (aguarda aprovação)</Link>
                   </Button>
+                  {role === "gestao" && (
+                    <Button type="button" variant="link" className="text-sm shrink-0 h-auto py-1 text-primary font-semibold" asChild>
+                      <Link to="/cadastro/admin" className="break-words text-center">📧 Cadastrar como Admin</Link>
+                    </Button>
+                  )}
                 </div>
               </form>
             </CardContent>

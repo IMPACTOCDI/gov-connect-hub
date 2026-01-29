@@ -17,5 +17,18 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    
+    <!-- Silenciar avisos de extensões do navegador (opcional) -->
+    <script>
+      // Filtrar avisos de runtime.lastError causados por extensões do navegador
+      const originalError = console.error;
+      console.error = function(...args) {
+        // Ignorar apenas avisos de runtime.lastError das extensões
+        if (args[0]?.includes?.('runtime.lastError')) {
+          return;
+        }
+        originalError.apply(console, args);
+      };
+    </script>
   </body>
 </html>
